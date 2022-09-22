@@ -1,0 +1,103 @@
+var roi = 
+    /* color: #d63000 */
+    /* shown: false */
+    ee.Geometry.Polygon(
+        [[[123.08462316379847, 0.4812324367898179],
+          [123.08462316379847, 0.4643672807901938],
+          [123.10968572483362, 0.4643672807901938],
+          [123.10968572483362, 0.4812324367898179]]], null, false),
+    AOI = ee.FeatureCollection("projects/geodes19/assets/Zn_EkoWistata_HP");
+
+var l8 = ee.ImageCollection('LANDSAT/LC08/C02/T1_TOA');
+
+var cloudlessl8 = l8.map(function(image) {
+  // Get a cloud score in [0, 100].
+  var cloud = ee.Algorithms.Landsat.simpleCloudScore(image).select('cloud');
+
+  // Create a mask of cloudy pixels from an arbitrary threshold.
+  var mask = cloud.lte(20);
+
+// NDWI
+var NDWI = image.expression(
+            '(Hijau - NIR)/(Hijau + NIR)',{
+            'NIR':image.select('B5'),
+            'Hijau':image.select('B3'),
+        }
+  ).rename('NDWI')
+  
+  var mask2 = NDWI.gte(0)
+  var mask3 = roi
+
+// Chl-a
+var Chla = image.expression(
+            '(0.2818*((Merah/(NIR+SWIR))**3.497))',{
+          //'((2.41*(NIR/Merah))+0.187)',{
+            'NIR':image.select('B5'),
+            'SWIR':image.select('B6'),
+            'Merah':image.select('B4'),
+            'Hijau':image.select('B3'),
+        }
+  ).rename('Chl_a')
+
+var SPL = image.expression(
+        //'(-0.0197*((BT11-273)**2)+0.2881*(BT11-273)+29.004)',{
+          '(-0.0996*(BT11-273)+30.899)',{
+        //(BT11-273)',{
+            'BT11':image.select('B11'),
+          }).rename('SPL')
+  // Return the masked image with an Chl-a band.
+  return image.addBands(Chla).addBands(SPL).updateMask(mask).updateMask(mask2).clip(roi);
+});
+
+print(ui.Chart.image.series({
+  imageCollection: cloudlessl8.select(['Chl_a','SPL']),
+  region: AOI,
+  reducer: ee.Reducer.mean(),//'mean' -> 'first' if only intersect one pixel (point AOI)
+  scale: 30
+}).setOptions({title: 'Cloud-masked Chl-a & SPL over time'}));
+
+
+Map.centerObject(AOI, 17)
+
+var OL8 = cloudlessl8.filterDate('2021-11-03', '2021-11-05')
+          .filterBounds(AOI);
+
+var trueColor432 = OL8.select(['B4', 'B3', 'B2']);
+var trueColor432Vis = {
+  min: 0.0,
+  max: 0.4,
+};
+
+var visChla = {"min":0, "max":0.3,
+            "palette":["ff6b15","ffb50d","ceff09","73ff09"]};
+
+var visSPL= {"min":28.5,"max":31,
+            "palette":["43ff48","daff47","ffb23f","ff7e33","ff4729"]};
+
+Map.addLayer(trueColor432, trueColor432Vis, 'True Color (432)');
+
+Map.addLayer(OL8.select('Chl_a'),visChla,'Chla')
+
+Map.addLayer(OL8.select('SPL'),visSPL,'SPL')
+
+Map.addLayer(AOI,{},'AOI')
+
+// Export the image, specifying scale and region.
+Export.image.toDrive({
+  image: OL8.select('Chl_a').mean(),
+  description: 'Chla',
+  folder: 'expGEE',
+  region: roi,
+  scale: 30,
+  maxPixels: 1e13
+});
+
+// Export the image, specifying scale and region.
+Export.image.toDrive({
+  image: OL8.select('SPL').mean(),
+  description: 'SPL',
+  folder: 'expGEE',
+  region: roi,
+  scale: 30,
+  maxPixels: 1e13
+});

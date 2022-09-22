@@ -1,0 +1,231 @@
+var roi = 
+    /* color: #ffc82d */
+    /* shown: false */
+    ee.Geometry.Polygon(
+        [[[123.07863191801515, 0.48829079401018594],
+          [123.07408594812834, 0.48399892324158134],
+          [123.06381632920684, 0.47713270650035544],
+          [123.07353023053635, 0.46498807356106453],
+          [123.0750397848374, 0.46329297269794306],
+          [123.07607351182828, 0.4622308524633827],
+          [123.0771501541387, 0.4607395926488656],
+          [123.08124433171463, 0.45490329499648013],
+          [123.09054846751667, 0.4410849784252552],
+          [123.10293040217417, 0.4499652012322688],
+          [123.11565568641795, 0.45927453291253595],
+          [123.11577100875272, 0.4605204156470656],
+          [123.11548534683088, 0.4612291851360896],
+          [123.11495627751891, 0.4617123117504362],
+          [123.1144557082564, 0.46154619244483286],
+          [123.1138406431669, 0.46137730473273164],
+          [123.11312541479629, 0.46159325837125076],
+          [123.1128321734717, 0.46208746061723377],
+          [123.11212765319719, 0.4634717812466248],
+          [123.11160373136246, 0.46375625908189166],
+          [123.11074095554032, 0.4638126700606159],
+          [123.11015936385424, 0.4642485578398266],
+          [123.1087313113057, 0.4650029258427425],
+          [123.10747491983092, 0.4658431214519833],
+          [123.10474979547179, 0.4679459035013518],
+          [123.10376274255431, 0.4692333207716914],
+          [123.1040405750482, 0.4707804555952364],
+          [123.1036972522943, 0.47157436261788765],
+          [123.10271019937682, 0.47230389872104733],
+          [123.10131545068907, 0.4723468126070887],
+          [123.10052151682066, 0.47266866674391317],
+          [123.09992070200133, 0.47369859988149265],
+          [123.09959116177458, 0.4748741373955033],
+          [123.09894743161101, 0.47577532861211774],
+          [123.09793892102141, 0.4759040702049005],
+          [123.09684457974333, 0.4758182424766458],
+          [123.09639396862883, 0.47583969940881443],
+          [123.09590044217009, 0.47560367315135915],
+          [123.09517088131804, 0.4758611563409067],
+          [123.09403362469573, 0.47667651971105157],
+          [123.0931925735966, 0.4773029723797634],
+          [123.09192657094157, 0.477646283212314],
+          [123.09057473759806, 0.477817938622171],
+          [123.08930873494303, 0.47792522325114495],
+          [123.08746337514079, 0.47841873252284833],
+          [123.08645486470606, 0.47931992326876605],
+          [123.08591842274821, 0.48112230442400983],
+          [123.08583909612678, 0.48209346510957346],
+          [123.08565248110195, 0.4833864794392427],
+          [123.08530493308194, 0.4863638606473242],
+          [123.08279227220977, 0.48701573205816806],
+          [123.08142865324399, 0.4875776932643786],
+          [123.08042981460831, 0.4876890594314804],
+          [123.0796810700568, 0.48773244404971605]]]),
+    AOI = ee.FeatureCollection("projects/geodes19/assets/Zn_EkoWistata_HP");
+
+
+Map.setCenter(123.095, 0.475, 15)
+
+Map.addLayer(AOI)
+//loading data
+var mAqua = ee.ImageCollection('NASA/OCEANDATA/MODIS-Aqua/L3SMI')
+                .filterDate('2021-01-01', '2021-12-31')
+
+var mTera = ee.ImageCollection("NASA/OCEANDATA/MODIS-Terra/L3SMI")
+                .filterDate('2021-01-01', '2021-12-31')
+
+var HYCOM = ee.ImageCollection('HYCOM/sea_surface_elevation')
+            //ee.ImageCollection("HYCOM/GLBu0_08/sea_surface_elevation")
+                  .filter(ee.Filter.date('2021-01-01', '2021-12-31'));
+
+var AChla = mAqua.select('chlor_a','sst')
+var TChla = mTera.select('chlor_a','sst')
+
+var mergeBands = function(previous, image) {
+  return ee.Image(previous).addBands(image);
+};
+
+var ModChla = AChla.merge(TChla)
+
+
+
+// Data Harian
+// Grafik Harian
+// Klorofil-a Aqua
+var Chla = ui.Chart.image.series({
+  imageCollection: ModChla,
+  region: AOI,
+  reducer: ee.Reducer.mean(),
+  scale: 5000,
+  xProperty: 'system:time_start'})
+  .setOptions({
+     title: 'Chla',
+     vAxis: {title: 'Chla (mg/m^3)'}});
+print(Chla);
+
+  // Klorofil-a Aqua
+var ChlaAs = ui.Chart.image.series({
+  imageCollection: AChla,
+  region: AOI,
+  reducer: ee.Reducer.mean(),
+  scale: 5000,
+  xProperty: 'system:time_start'})
+  .setOptions({
+     title: 'Chla Aqua',
+     vAxis: {title: 'Chla (mg/m^3)'}});
+print(ChlaAs);
+
+
+var ChlaTs = ui.Chart.image.series({
+  imageCollection: TChla,
+  region: AOI,
+  reducer: ee.Reducer.mean(),
+  scale: 5000,
+  xProperty: 'system:time_start'})
+  .setOptions({
+     title: 'Chla Tera',
+     vAxis: {title: 'Chla (mg/m^3)'}});
+print(ChlaTs);
+
+// sea surface elevation
+var sse = ui.Chart.image.series({
+  imageCollection: HYCOM,
+  region: AOI,
+  reducer: ee.Reducer.mean(),
+  scale: 8905.6,
+  xProperty: 'system:time_start'})
+  .setOptions({
+     title: 'sea surface elevation',
+     vAxis: {title: 'sea surface elevation (m)'}});
+print(sse);
+
+
+// Data Bulanan
+var months = ee.List.sequence(1, 12);
+var years = ee.List.sequence(2021, 2021);
+
+var mMChla = ee.ImageCollection.fromImages(
+  years.map(function(y) {
+    return months.map(function (m) {
+     return ModChla
+      .filter(ee.Filter.calendarRange(y, y, 'year'))
+      .filter(ee.Filter.calendarRange(m, m, 'month'))
+      .mean()
+      .set('month', m).set('year', y);
+    });
+ }).flatten());
+
+var mAChla = ee.ImageCollection.fromImages(
+  years.map(function(y) {
+    return months.map(function (m) {
+     return AChla
+      .filter(ee.Filter.calendarRange(y, y, 'year'))
+      .filter(ee.Filter.calendarRange(m, m, 'month'))
+      .mean()
+      .set('month', m).set('year', y);
+    });
+ }).flatten());
+
+var mTChla = ee.ImageCollection.fromImages(
+  years.map(function(y) {
+    return months.map(function (m) {
+     return TChla
+      .filter(ee.Filter.calendarRange(y, y, 'year'))
+      .filter(ee.Filter.calendarRange(m, m, 'month'))
+      .mean()
+      .set('month', m).set('year', y);
+    });
+ }).flatten());
+
+var msse = ee.ImageCollection.fromImages(
+  years.map(function(y) {
+    return months.map(function (m) {
+     return HYCOM
+      .filter(ee.Filter.calendarRange(y, y, 'year'))
+      .filter(ee.Filter.calendarRange(m, m, 'month'))
+      .mean()
+      .set('month', m).set('year', y);
+    });
+ }).flatten());
+ 
+// Grafik Bulanan
+var ChlaMds = ui.Chart.image.series({
+  imageCollection: mMChla,
+  region: AOI,
+  reducer: ee.Reducer.mean(),
+  scale: 5000,
+  xProperty: 'month'})
+  .setOptions({
+     title: 'Chla',
+     vAxis: {title: 'Chla (mg/m^3)'}});
+print(ChlaMds);
+
+// Klorofil-a Aqua
+var ChlaAs = ui.Chart.image.series({
+  imageCollection: mAChla,
+  region: AOI,
+  reducer: ee.Reducer.mean(),
+  scale: 5000,
+  xProperty: 'month'})
+  .setOptions({
+     title: 'Chla Aqua',
+     vAxis: {title: 'Chla (mg/m^3)'}});
+print(ChlaAs);
+
+// Klorofil-a Tera
+var ChlaTs = ui.Chart.image.series({
+  imageCollection: mTChla,
+  region: AOI,
+  reducer: ee.Reducer.mean(),
+  scale: 5000,
+  xProperty: 'month'})
+  .setOptions({
+     title: 'Chla Tera',
+     vAxis: {title: 'Chla (mg/m^3)'}});
+print(ChlaTs);
+
+var m_sse = ui.Chart.image.series({
+  imageCollection: msse,
+  region: AOI,
+  reducer: ee.Reducer.mean(),
+  scale: 8905.6,
+  xProperty: 'month'})
+  .setOptions({
+     title: 'sea surface elevation',
+     vAxis: {title: 'sea surface elevation (m)'}});
+print(m_sse);
